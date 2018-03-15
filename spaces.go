@@ -56,6 +56,7 @@ func (a *Airlock) Upload() error {
 	bar := uiprogress.AddBar(len(a.files))
 	bar.AppendCompleted()
 	bar.PrependElapsed()
+	bar.Width = 25
 
 	bar.PrependFunc(func(b *uiprogress.Bar) string {
 		index := max(0, min(len(a.files)-1, b.Current()))
