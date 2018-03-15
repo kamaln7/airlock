@@ -3,6 +3,7 @@ package airlock
 import (
 	"fmt"
 	"math/rand"
+	"time"
 
 	"github.com/goamz/goamz/s3"
 	"github.com/gosuri/uiprogress"
@@ -19,9 +20,18 @@ func randomString(n int) string {
 }
 
 func (a *Airlock) MakeSpace() error {
+	rand.Seed(time.Now().UTC().UnixNano())
+
+	cleanName := a.name
+	preRandLength := SpaceNameMaxLength - SpaceNameRandLength - 1
+	if len(cleanName) > preRandLength {
+		cleanName = cleanName[:preRandLength]
+	}
+
 	for {
-		name := fmt.Sprintf("%s-%s", a.Name, randomString(5))
-		space := a.Spaces.Bucket(name)
+		spaceName := fmt.Sprintf("%s-%s", cleanName, randomString(SpaceNameRandLength))
+
+		space := a.Spaces.Bucket(spaceName)
 		err := space.PutBucket(s3.Private)
 		if err != nil {
 			if serr, ok := err.(*s3.Error); ok && serr.Code == "BucketAlreadyExists" {

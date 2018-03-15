@@ -1,45 +1,70 @@
 package airlock
 
 import (
-	"math/rand"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
-	"time"
 
 	"github.com/goamz/goamz/s3"
 )
 
 type Airlock struct {
 	Spaces *s3.S3
-	Name   string
 
+	name  string
 	files []File
 	space *s3.Bucket
 }
 
+var (
+	SpaceNameRegexp       = regexp.MustCompile(`[^a-z0-9\-]+`)
+	SpaceNamePrefixRegexp = regexp.MustCompile(`[^a-z0-9]`)
+)
+
+const (
+	SpaceNameMaxLength  = 63
+	SpaceNameRandLength = 5
+)
+
 func New(spaces *s3.S3, path string) (*Airlock, error) {
-	name := filepath.Base(path)
-	info, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return nil, ErrDoesNotExist(err)
-	}
-
-	if info.IsDir() {
-		name = strings.TrimSuffix(name, filepath.Ext(name))
-	}
-
-	airlock := &Airlock{
+	al := &Airlock{
 		Spaces: spaces,
-		Name:   name,
 	}
 
-	rand.Seed(time.Now().UTC().UnixNano())
+	err := al.SetName(path)
 
-	err = airlock.ScanFiles(path)
+	err = al.ScanFiles(path)
 	if err != nil {
 		return nil, err
 	}
 
-	return airlock, nil
+	return al, nil
+}
+
+func (a *Airlock) SetName(path string) error {
+	name := filepath.Base(path)
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return ErrDoesNotExist(err)
+		}
+
+		return err
+	}
+
+	if !info.IsDir() {
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+	}
+
+	name = strings.ToLower(name)
+	name = SpaceNameRegexp.ReplaceAllString(name, "")
+	name = SpaceNamePrefixRegexp.ReplaceAllString(name, "")
+
+	if len(name) == 0 {
+		name = "airlock"
+	}
+
+	a.name = name
+	return nil
 }

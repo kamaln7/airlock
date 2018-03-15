@@ -44,7 +44,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	fmt.Printf("\t* uploading files\n\n")
 	al.Upload()
 
-	fmt.Printf("\n\t-> https://%s.nyc3.digitaloceanspaces.com", al.SpaceName())
+	fmt.Printf("\n\t-> https://%s.nyc3.digitaloceanspaces.com\n", al.SpaceName())
 }
