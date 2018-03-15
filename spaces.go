@@ -7,6 +7,7 @@ import (
 
 	"github.com/goamz/goamz/s3"
 	"github.com/gosuri/uiprogress"
+	"github.com/gosuri/uiprogress/util/strutil"
 )
 
 func randomString(n int) string {
@@ -56,15 +57,32 @@ func (a *Airlock) Upload() error {
 	bar.AppendCompleted()
 	bar.PrependElapsed()
 
-	var err error
+	bar.PrependFunc(func(b *uiprogress.Bar) string {
+		index := max(0, min(len(a.files)-1, b.Current()))
+
+		return strutil.Resize(a.files[index].Info.Name(), 15)
+	})
+
+	var (
+		err error
+		// use our own counter instead of bar.Incr()
+		// it does not need to be thread safe. keep track
+		// of the progress so we can manually set it later
+		// and force the bar to update
+		progress = 1
+	)
 	for _, file := range a.files {
 		err = file.Upload(a.space)
 
-		bar.Incr()
+		bar.Set(progress)
 		if err != nil {
 			break
 		}
+
+		progress++
 	}
+	bar.Set(progress)
+	uiprogress.Stop()
 
 	return err
 }
