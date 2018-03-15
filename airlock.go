@@ -43,7 +43,13 @@ func New(spaces *s3.S3, path string) (*Airlock, error) {
 }
 
 func (a *Airlock) SetName(path string) error {
-	name := filepath.Base(path)
+	// use absolute path to include the directory's name in case for example "." is passed as the path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+
+	name := filepath.Base(absPath)
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
