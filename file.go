@@ -9,8 +9,8 @@ import (
 )
 
 type File struct {
-	Path, AbsPath, RelPath string
-	Info                   os.FileInfo
+	Path, RelPath string
+	Info          os.FileInfo
 }
 
 func (f File) Upload(space *s3.Bucket) error {
@@ -18,7 +18,7 @@ func (f File) Upload(space *s3.Bucket) error {
 		return nil
 	}
 
-	fileContent, err := ioutil.ReadFile(f.AbsPath)
+	fileContent, err := ioutil.ReadFile(f.Path)
 	if err != nil {
 		return err
 	}
