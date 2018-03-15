@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/goamz/goamz/aws"
 	"github.com/goamz/goamz/s3"
 	"github.com/kamaln7/airlock"
@@ -28,24 +29,24 @@ func main() {
 		log.Fatalln("Usage: airlock <path>")
 	}
 
-	fmt.Printf("\t* connecting to Spaces\n")
+	fmt.Printf("\t🌌 connecting to Spaces\n")
 	spaces := connectSpaces(endpoint, accessKey, secretAccessKey)
 
-	fmt.Printf("\t* indexing files\n")
+	fmt.Println("\t🌌 indexing files")
 	path := os.Args[1]
 	al, err := airlock.New(spaces, path)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	fmt.Printf("\t* creating Space\n")
+	fmt.Println("\t🌌 creating Space")
 	err = al.MakeSpace()
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	fmt.Printf("\t* uploading files\n\n")
+	fmt.Printf("\t🌌 uploading files\n\n")
 	al.Upload()
 
-	fmt.Printf("\n\t-> https://%s.nyc3.digitaloceanspaces.com\n", al.SpaceName())
+	fmt.Printf("\n\t🚀 %s\n", color.New(color.FgBlue).Sprintf("https://%s.nyc3.digitaloceanspaces.com", al.SpaceName()))
 }
