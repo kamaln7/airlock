@@ -65,7 +65,9 @@ func (a *Airlock) SetName(path string) error {
 
 	name = strings.ToLower(name)
 	name = SpaceNameRegexp.ReplaceAllString(name, "")
-	name = SpaceNamePrefixRegexp.ReplaceAllString(name, "")
+	name = strings.TrimLeftFunc(name, func(r rune) bool {
+		return SpaceNamePrefixRegexp.MatchString(string(r))
+	})
 
 	if len(name) == 0 {
 		name = "airlock"

@@ -45,6 +45,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	fmt.Printf("\t🌌 created Space %s\n", color.BlueString(al.SpaceName()))
+
 	fmt.Printf("\t🌌 uploading files\n\n")
 	al.Upload()
 
