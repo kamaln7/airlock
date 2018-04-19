@@ -39,6 +39,11 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	err = al.AddFileListings()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	fmt.Println("\t🌌 creating Space")
 	err = al.MakeSpace()
 	if err != nil {
@@ -48,7 +53,13 @@ func main() {
 	fmt.Printf("\t🌌 created Space %s\n", color.BlueString(al.SpaceName()))
 
 	fmt.Printf("\t🌌 uploading files\n\n")
-	al.Upload()
+	err = al.Upload()
+	if err != nil {
+		if serr, ok := err.(*s3.Error); ok {
+			fmt.Printf("%#v\n", serr)
+		}
+		log.Fatalln(err)
+	}
 
 	fmt.Printf("\n\t🚀 %s\n", color.New(color.FgBlue).Sprintf("https://%s.nyc3.digitaloceanspaces.com", al.SpaceName()))
 }

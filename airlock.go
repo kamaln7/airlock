@@ -1,6 +1,7 @@
 package airlock
 
 import (
+	"html/template"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,9 +13,11 @@ import (
 type Airlock struct {
 	Spaces *s3.S3
 
-	name  string
-	files []File
-	space *s3.Bucket
+	name        string
+	files       []*File
+	tree        map[string]*File
+	space       *s3.Bucket
+	listingTmpl *template.Template
 }
 
 var (
@@ -43,13 +46,6 @@ func New(spaces *s3.S3, path string) (*Airlock, error) {
 }
 
 func (a *Airlock) SetName(path string) error {
-	// use absolute path to include the directory's name in case for example "." is passed as the path
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-
-	name := filepath.Base(absPath)
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -58,6 +54,14 @@ func (a *Airlock) SetName(path string) error {
 
 		return err
 	}
+
+	// use absolute path to include the directory's name in case for example "." is passed as the path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+
+	name := filepath.Base(absPath)
 
 	if !info.IsDir() {
 		name = strings.TrimSuffix(name, filepath.Ext(name))

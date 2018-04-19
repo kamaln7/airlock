@@ -62,7 +62,7 @@ func (a *Airlock) Upload() error {
 	bar.PrependFunc(func(b *uiprogress.Bar) string {
 		index := max(0, min(len(a.files)-1, b.Current()))
 
-		return color.New(color.FgBlue).Sprint(strutil.Resize(" "+a.files[index].Info.Name(), 15))
+		return color.New(color.FgBlue).Sprint(strutil.Resize(" "+a.files[index].Name, 15))
 	})
 
 	var (

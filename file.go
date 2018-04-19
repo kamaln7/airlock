@@ -1,28 +1,30 @@
 package airlock
 
 import (
-	"io/ioutil"
 	"net/http"
-	"os"
 
 	"github.com/goamz/goamz/s3"
 )
 
+type FileReader func() ([]byte, error)
+
 type File struct {
-	Path, RelPath string
-	Info          os.FileInfo
+	RelPath, Name    string
+	IsDir, IsNotRoot bool
+	Read             FileReader
+	Children         []*File
 }
 
-func (f File) Upload(space *s3.Bucket) error {
-	if f.Info.IsDir() {
+func (f *File) Upload(space *s3.Bucket) error {
+	if f.IsDir {
 		return nil
 	}
 
-	fileContent, err := ioutil.ReadFile(f.Path)
+	content, err := f.Read()
 	if err != nil {
 		return err
 	}
 
-	contentType := http.DetectContentType(fileContent)
-	return space.Put(f.RelPath, fileContent, contentType, s3.PublicRead, s3.Options{})
+	contentType := http.DetectContentType(content)
+	return space.Put(f.RelPath, content, contentType, s3.PublicRead, s3.Options{})
 }
