@@ -1,14 +1,20 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
+	"github.com/atotto/clipboard"
 	"github.com/fatih/color"
 	"github.com/goamz/goamz/aws"
 	"github.com/goamz/goamz/s3"
+	"github.com/mitchellh/go-homedir"
+
 	"github.com/kamaln7/airlock"
+	"github.com/kamaln7/airlock/config"
 )
 
 func connectSpaces(endpoint, accessKey, secretAccessKey string) *s3.S3 {
@@ -20,17 +26,43 @@ func connectSpaces(endpoint, accessKey, secretAccessKey string) *s3.S3 {
 	})
 }
 
+var configPath string
+
+func setOptions() {
+	homedirPath, err := homedir.Dir()
+	if err != nil {
+		log.Printf("could not find home directory: %v\n", err)
+		homedirPath = ""
+	} else {
+		homedirPath = filepath.Join(homedirPath, ".airlock.yaml")
+	}
+
+	// read config path from flag
+	flag.StringVar(&configPath, "config", homedirPath, "path to airlock config file")
+	flag.Parse()
+
+	// override with env
+	envPath := os.Getenv("CONFIG")
+	if envPath != "" {
+		configPath = envPath
+	}
+}
+
 func main() {
-	endpoint := "https://nyc3.digitaloceanspaces.com"
-	accessKey := os.Getenv("SPACES_ACCESS_KEY")
-	secretAccessKey := os.Getenv("SPACES_SECRET")
+	setOptions()
+
+	conf := config.Read(configPath)
+	if !conf.Validate() {
+		log.Fatalln("config is invalid.")
+	}
 
 	if len(os.Args) < 2 {
 		log.Fatalln("Usage: airlock <path>")
 	}
 
 	fmt.Printf("\t🌌 connecting to Spaces\n")
-	spaces := connectSpaces(endpoint, accessKey, secretAccessKey)
+	endpoint := fmt.Sprintf("https://%s.digitaloceanspaces.com", conf.Region)
+	spaces := connectSpaces(endpoint, conf.SpacesAccessKey, conf.SpacesSecret)
 
 	fmt.Println("\t🌌 indexing files")
 	path := os.Args[1]
@@ -39,9 +71,11 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = al.AddFileListings()
-	if err != nil {
-		log.Fatalln(err)
+	if conf.CreateIndexes {
+		err = al.AddFileListings()
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 
 	fmt.Println("\t🌌 creating Space")
@@ -61,5 +95,11 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	fmt.Printf("\n\t🚀 %s\n", color.New(color.FgBlue).Sprintf("https://%s.nyc3.digitaloceanspaces.com", al.SpaceName()))
+	url := fmt.Sprintf("https://%s.%s.digitaloceanspaces.com", al.SpaceName(), conf.Region)
+
+	if conf.CopyToClipboard {
+		clipboard.WriteAll(url)
+	}
+
+	fmt.Printf("\n\t🚀 %s\n", color.New(color.FgBlue).Sprint(url))
 }
