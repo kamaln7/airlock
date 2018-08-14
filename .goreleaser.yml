@@ -1,0 +1,18 @@
+builds:
+  - binary: airlock
+    main: ./cmd/airlock/main.go
+    goos:
+      - linux
+      - windows
+      - darwin
+snapshot:
+  name_template: "{{ .Tag }}-next"
+git:
+  short_hash: true
+dockers:
+  - image: kamaln7/airlock
+    binary: airlock
+    dockerfile: Dockerfile-goreleaser
+    tag_templates:
+      - "{{ .Version }}"
+      - latest

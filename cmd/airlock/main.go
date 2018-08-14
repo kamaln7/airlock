@@ -17,6 +17,9 @@ import (
 	"github.com/kamaln7/airlock/config"
 )
 
+// version is filled in using ldflags
+var version = "-dev"
+
 func connectSpaces(endpoint, accessKey, secretAccessKey string) *s3.S3 {
 	return s3.New(aws.Auth{
 		AccessKey: accessKey,
@@ -56,8 +59,12 @@ func main() {
 		log.Fatalln("config is invalid.")
 	}
 
-	if len(os.Args) < 2 {
-		log.Fatalln("Usage: airlock <path>")
+	if len(os.Args) < 2 || os.Args[1] == "version" || os.Args[1] == "help" {
+		fmt.Printf(`%s %s
+	Usage: airlock <path>
+`, color.New(color.FgBlue).Sprint("airlock"), version)
+
+		os.Exit(0)
 	}
 
 	fmt.Printf("\t🌌 connecting to Spaces\n")
