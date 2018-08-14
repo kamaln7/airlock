@@ -94,7 +94,7 @@ func (a *Airlock) addFileListing(tree *File, root bool) {
 
 		a.tree[index.RelPath] = index
 		tree.Children = append(tree.Children, index)
-		a.files = append(a.files, index)
+		a.files = append(a.files, *index)
 	}
 
 	for _, child := range tree.Children {

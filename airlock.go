@@ -14,7 +14,7 @@ type Airlock struct {
 	Spaces *s3.S3
 
 	name        string
-	files       []*File
+	files       []File
 	tree        map[string]*File
 	space       *s3.Bucket
 	listingTmpl *template.Template

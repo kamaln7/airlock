@@ -3,12 +3,11 @@ package airlock
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/goamz/goamz/s3"
 	"github.com/gosuri/uiprogress"
-	"github.com/gosuri/uiprogress/util/strutil"
 )
 
 func randomString(n int) string {
@@ -53,38 +52,31 @@ func (a *Airlock) SpaceName() string {
 }
 
 func (a *Airlock) Upload() error {
-	uiprogress.Start()
-	bar := uiprogress.AddBar(len(a.files))
-	bar.AppendCompleted()
-	bar.PrependElapsed()
-	bar.Width = 25
+	var nBars int
+	if len(a.files) < 3 {
+		nBars = 1
+	} else {
+		nBars = 3
+	}
 
-	bar.PrependFunc(func(b *uiprogress.Bar) string {
-		index := max(0, min(len(a.files)-1, b.Current()))
+	wgs := a.makeWorkGroups(nBars)
 
-		return color.New(color.FgBlue).Sprint(strutil.Resize(" "+a.files[index].Name, 15))
-	})
+	p := uiprogress.New()
+	p.Start()
 
 	var (
-		err error
-		// use our own counter instead of bar.Incr()
-		// it does not need to be thread safe. keep track
-		// of the progress so we can manually set it later
-		// and force the bar to update
-		progress = 1
+		waitGroup sync.WaitGroup
+		errChan   = make(chan error, 1)
 	)
-	for _, file := range a.files {
-		err = file.Upload(a.space)
 
-		bar.Set(progress)
-		if err != nil {
-			break
-		}
-
-		progress++
+	for _, wg := range wgs {
+		waitGroup.Add(1)
+		go wg.Work(&waitGroup, errChan, a.space, p)
 	}
-	bar.Set(progress)
-	uiprogress.Stop()
+	waitGroup.Wait()
 
-	return err
+	close(errChan)
+	p.Stop()
+
+	return <-errChan
 }

@@ -51,7 +51,7 @@ func (a *Airlock) ScanFiles(path string) error {
 			IsNotRoot: false,
 			Children:  []*File{file},
 		}
-		a.files = append(a.files, file)
+		a.files = append(a.files, *file)
 
 		return nil
 	}
@@ -92,7 +92,7 @@ func (a *Airlock) scanDirectory(dirPath string) error {
 
 		// insert only files to a.files
 		if !info.IsDir() {
-			a.files = append(a.files, file)
+			a.files = append(a.files, *file)
 		}
 
 		return nil
