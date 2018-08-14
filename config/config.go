@@ -33,7 +33,7 @@ func Read(path string) *Config {
 
 	// set defaults
 	conf.CreateIndexes = true
-	conf.CopyToClipboard = false
+	conf.CopyToClipboard = true
 
 	// scan config into struct
 	config.Scan(&conf)
