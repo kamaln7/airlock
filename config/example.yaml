@@ -3,3 +3,4 @@ spacesSecret: SECRET
 region: ams3
 createIndexes: true
 copyToClipboard: false
+appendIndexUri: true

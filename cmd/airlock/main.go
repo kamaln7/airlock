@@ -103,6 +103,9 @@ func main() {
 	}
 
 	url := fmt.Sprintf("https://%s.%s.digitaloceanspaces.com", al.SpaceName(), conf.Region)
+	if conf.AppendIndexURI {
+		url = url + "/index.html"
+	}
 
 	fmt.Printf("\n\t🚀 %s\n", color.New(color.FgBlue).Sprint(url))
 

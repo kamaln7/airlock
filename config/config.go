@@ -15,6 +15,7 @@ type Config struct {
 	Region          string `json:"region"`
 	CreateIndexes   bool   `json:"createIndexes"`
 	CopyToClipboard bool   `json:"copyToClipboard"`
+	AppendIndexURI  bool   `json:"appendIndexUri"`
 }
 
 func Read(path string) *Config {
@@ -34,6 +35,7 @@ func Read(path string) *Config {
 	// set defaults
 	conf.CreateIndexes = true
 	conf.CopyToClipboard = true
+	conf.AppendIndexURI = true
 
 	// scan config into struct
 	config.Scan(&conf)
