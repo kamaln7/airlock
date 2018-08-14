@@ -18,7 +18,7 @@ import (
 )
 
 // version is filled in using ldflags
-var version = "-dev"
+var version = "v-dev"
 
 func connectSpaces(endpoint, accessKey, secretAccessKey string) *s3.S3 {
 	return s3.New(aws.Auth{
@@ -40,6 +40,18 @@ func setOptions() {
 		homedirPath = filepath.Join(homedirPath, ".airlock.yaml")
 	}
 
+	// set usage function
+	flag.Usage = func() {
+		fmt.Printf(`%s %s
+
+Usage: airlock <path>
+
+Arguments:
+	-config string (optional)
+		path to airlock config file (default "%s")
+`, color.New(color.FgBlue).Sprint("airlock"), version, homedirPath)
+	}
+
 	// read config path from flag
 	flag.StringVar(&configPath, "config", homedirPath, "path to airlock config file")
 	flag.Parse()
@@ -59,10 +71,9 @@ func main() {
 		log.Fatalln("config is invalid.")
 	}
 
-	if len(os.Args) < 2 || os.Args[1] == "version" || os.Args[1] == "help" {
-		fmt.Printf(`%s %s
-	Usage: airlock <path>
-`, color.New(color.FgBlue).Sprint("airlock"), version)
+	arg := flag.Arg(0)
+	if arg == "" || arg == "version" {
+		flag.Usage()
 
 		os.Exit(0)
 	}
@@ -72,8 +83,7 @@ func main() {
 	spaces := connectSpaces(endpoint, conf.SpacesAccessKey, conf.SpacesSecret)
 
 	fmt.Println("\t🌌 indexing files")
-	path := os.Args[1]
-	al, err := airlock.New(spaces, path)
+	al, err := airlock.New(spaces, arg)
 	if err != nil {
 		log.Fatalln(err)
 	}
