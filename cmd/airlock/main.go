@@ -104,9 +104,10 @@ func main() {
 
 	url := fmt.Sprintf("https://%s.%s.digitaloceanspaces.com", al.SpaceName(), conf.Region)
 
+	fmt.Printf("\n\t🚀 %s\n", color.New(color.FgBlue).Sprint(url))
+
 	if conf.CopyToClipboard {
 		clipboard.WriteAll(url)
+		fmt.Printf("\t  %s\n", color.New(color.FgHiBlack).Sprint(" (in clipboard)"))
 	}
-
-	fmt.Printf("\n\t🚀 %s\n", color.New(color.FgBlue).Sprint(url))
 }
