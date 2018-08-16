@@ -20,7 +20,7 @@ dockers:
 brew:
   github:
     owner: kamaln7
-    name: airlock-tap
+    name: homebrew-airlock
   folder: Formula
   caveats: "example config file at https://github.com/kamaln7/airlock/blob/master/config/example.yaml - place at ~/.airlock.yaml"
   description: "instantly deploy static websites and files to DigitalOcean spaces. usage: airlock <directory or file>"
