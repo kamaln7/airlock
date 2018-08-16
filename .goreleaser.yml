@@ -1,3 +1,4 @@
+project_name: airlock
 builds:
   - binary: airlock
     main: ./cmd/airlock/main.go
@@ -16,3 +17,11 @@ dockers:
     tag_templates:
       - "{{ .Version }}"
       - latest
+brew:
+  github:
+    owner: kamaln7
+    name: airlock-tap
+  folder: Formula
+  caveats: "example config file at https://github.com/kamaln7/airlock/blob/master/config/example.yaml - place at ~/.airlock.yaml"
+  description: "instantly deploy static websites and files to DigitalOcean spaces. usage: airlock <directory or file>"
+  homepage: "https://airlock.space"
