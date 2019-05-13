@@ -19,6 +19,7 @@ import (
 
 // we currently need to add index.html to URIs manually
 const appendIndexURI = true
+
 // version is filled in using ldflags
 var version = "v-dev"
 
@@ -49,13 +50,31 @@ func setOptions() {
 Usage: airlock <path>
 
 Arguments:
-	-config string (optional)
+	-config string
 		path to airlock config file (default "%s")
+	-region string
+		Spaces region
+	-spacesAccessKey string
+		Spaces access key
+	-spacesSecret string
+		Spaces secret
+	-copyToClipboard
+		Copy the resulting Spaces URL to the clipboard (default true)
+	-createIndexes
+		Create index.html files or not (default true)
+	-dryRun
+		Test run without contacting Spaces at all
 `, color.New(color.FgBlue).Sprint("airlock"), version, homedirPath)
 	}
 
 	// read config path from flag
 	flag.StringVar(&configPath, "config", homedirPath, "path to airlock config file")
+	flag.String("spacesAccessKey", "", "Spaces access key")
+	flag.String("spacesSecret", "", "Spaces secret")
+	flag.String("region", "", "Spaces region")
+	flag.Bool("createIndexes", true, "Create index.html files or not")
+	flag.Bool("copyToClipboard", true, "Copy the resulting Spaces URL to the clipboard")
+	flag.Bool("dryRun", false, "Test run without contacting Spaces at all")
 	flag.Parse()
 
 	// override with env
@@ -74,7 +93,7 @@ func main() {
 	}
 
 	arg := flag.Arg(0)
-	if arg == "" || arg == "version" {
+	if arg == "" {
 		flag.Usage()
 
 		os.Exit(0)
@@ -84,11 +103,13 @@ func main() {
 	endpoint := fmt.Sprintf("https://%s.digitaloceanspaces.com", conf.Region)
 	spaces := connectSpaces(endpoint, conf.SpacesAccessKey, conf.SpacesSecret)
 
-	fmt.Println("\t🌌 indexing files")
+	fmt.Println("\t⚙  indexing files")
 	al, err := airlock.New(spaces, arg)
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	al.DryRun = conf.DryRun
 
 	if conf.CreateIndexes {
 		err = al.AddFileListings()
@@ -97,21 +118,22 @@ func main() {
 		}
 	}
 
-	fmt.Println("\t🌌 creating Space")
+	fmt.Println("\t⚙  creating Space")
 	err = al.MakeSpace()
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	fmt.Printf("\t🌌 created Space %s\n", color.BlueString(al.SpaceName()))
+	fmt.Printf("\t➕ created Space %s\n", color.BlueString(al.SpaceName()))
 
-	fmt.Printf("\t🌌 uploading files\n\n")
+	fmt.Printf("\t✏️  uploading files\n\n")
 	err = al.Upload()
 	if err != nil {
 		if serr, ok := err.(*s3.Error); ok {
 			fmt.Printf("%#v\n", serr)
+		} else {
+			log.Fatalln(err)
 		}
-		log.Fatalln(err)
 	}
 
 	url := fmt.Sprintf("https://%s.%s.digitaloceanspaces.com", al.SpaceName(), conf.Region)

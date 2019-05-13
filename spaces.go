@@ -3,11 +3,9 @@ package airlock
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/goamz/goamz/s3"
-	"github.com/gosuri/uiprogress"
 )
 
 func randomString(n int) string {
@@ -32,6 +30,13 @@ func (a *Airlock) MakeSpace() error {
 	for {
 		spaceName := fmt.Sprintf("%s-%s", cleanName, randomString(SpaceNameRandLength))
 
+		if a.DryRun {
+			a.space = &s3.Bucket{
+				Name: spaceName,
+			}
+			return nil
+		}
+
 		space := a.Spaces.Bucket(spaceName)
 		err := space.PutBucket(s3.Private)
 		if err != nil {
@@ -49,34 +54,4 @@ func (a *Airlock) MakeSpace() error {
 
 func (a *Airlock) SpaceName() string {
 	return a.space.Name
-}
-
-func (a *Airlock) Upload() error {
-	var nBars int
-	if len(a.files) < 3 {
-		nBars = 1
-	} else {
-		nBars = 3
-	}
-
-	wgs := a.makeWorkGroups(nBars)
-
-	p := uiprogress.New()
-	p.Start()
-
-	var (
-		waitGroup sync.WaitGroup
-		errChan   = make(chan error, len(wgs))
-	)
-
-	for _, wg := range wgs {
-		waitGroup.Add(1)
-		go wg.Work(&waitGroup, errChan, a.space, p)
-	}
-	waitGroup.Wait()
-
-	close(errChan)
-	p.Stop()
-
-	return <-errChan
 }

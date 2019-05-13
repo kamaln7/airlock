@@ -1,17 +1,25 @@
 package airlock
 
 import (
+	"fmt"
 	"html/template"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/fatih/color"
 	"github.com/goamz/goamz/s3"
+	"github.com/gosuri/uiprogress"
+	"github.com/gosuri/uiprogress/util/strutil"
 )
 
 type Airlock struct {
 	Spaces *s3.S3
+	DryRun bool
 
 	name        string
 	files       []File
@@ -28,6 +36,8 @@ var (
 const (
 	SpaceNameMaxLength  = 63
 	SpaceNameRandLength = 5
+	// FileUploadMaxTries is the maximum amount of times airlock will try to upload a file and receive an error before giving up on it
+	FileUploadMaxTries = 2
 )
 
 func New(spaces *s3.S3, path string) (*Airlock, error) {
@@ -79,4 +89,129 @@ func (a *Airlock) SetName(path string) error {
 
 	a.name = name
 	return nil
+}
+
+func (a *Airlock) Upload() error {
+	var numWorkers int
+	if len(a.files) < 3 {
+		numWorkers = 1
+	} else {
+		numWorkers = 3
+	}
+
+	// run workers and wait for them to finish
+	var (
+		wg       sync.WaitGroup
+		errChan  = make(chan error)
+		fileChan = make(chan File, numWorkers)
+	)
+
+	// copy files to a files channel
+	go func() {
+		for _, file := range a.files {
+			fileChan <- file
+		}
+		close(fileChan)
+	}()
+
+	// start progress bar instance
+	p := uiprogress.New()
+	p.Start()
+
+	// print any received errors
+	go func() {
+		for err := range errChan {
+			fmt.Fprintln(p.Bypass(), err.Error())
+		}
+	}()
+
+	// create ui progress bars for workers and run them
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		func() {
+			bar := p.AddBar(len(a.files))
+			bar.Width = 30
+			bar.AppendCompleted()
+			go a.uploadWorker(&wg, fileChan, errChan, bar)
+		}()
+	}
+	wg.Wait()
+
+	close(errChan)
+	p.Stop()
+
+	return nil
+}
+
+func (a *Airlock) uploadWorker(wg *sync.WaitGroup, fileChan chan File, errChan chan<- error, bar *uiprogress.Bar) {
+	var currentFileName string // we need to keep track of this outside the loop so we can print it with the bar
+
+	defer func() {
+		currentFileName = ""
+		for bar.Incr() {
+		}
+		wg.Done()
+	}()
+
+	bar.PrependFunc(func(b *uiprogress.Bar) string {
+		var (
+			elapsedTime = ""
+			c           *color.Color
+		)
+
+		// check if completed
+		if b.Current() == b.Total {
+			c = color.New(color.FgHiBlack)
+			elapsedTime = ""
+		} else {
+			c = color.New(color.FgBlue)
+			elapsedTime = b.TimeElapsedString()
+		}
+
+		// trim strings to not take up too much cli space
+		cfn := c.Sprint(strutil.Resize(currentFileName, 15))
+		elapsedTime = color.New(color.FgYellow).Sprint(strutil.PadLeft(elapsedTime, 5, ' '))
+
+		return cfn + elapsedTime
+	})
+
+	// do the magic
+	for file := range fileChan {
+		currentFileName = file.Name
+
+		err := a.uploadFile(file)
+
+		if err == nil {
+			// thank u, next
+			bar.Incr()
+			continue
+		}
+
+		errChan <- err
+		// re-insert into the channel if the upload failed or ignore if hit max number of tries
+		if file.uploadTries < FileUploadMaxTries {
+			file.uploadTries++
+			fileChan <- file
+		}
+	}
+}
+
+func (a *Airlock) uploadFile(f File) error {
+	// do nothing on dry run
+	if a.DryRun {
+		time.Sleep(time.Millisecond * 300)
+		return nil
+	}
+
+	if f.IsDir {
+		return nil
+	}
+
+	content, err := f.Read()
+	if err != nil {
+		return err
+	}
+
+	contentType := http.DetectContentType(content)
+	return a.space.Put(f.RelPath, content, contentType, s3.PublicRead, s3.Options{})
 }

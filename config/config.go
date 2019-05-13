@@ -2,7 +2,7 @@ package config
 
 import (
 	"github.com/micro/go-config"
-	"github.com/micro/go-config/source/envvar"
+	"github.com/micro/go-config/source/env"
 	"github.com/micro/go-config/source/file"
 	"github.com/micro/go-config/source/flag"
 )
@@ -15,6 +15,7 @@ type Config struct {
 	Region          string `json:"region"`
 	CreateIndexes   bool   `json:"createIndexes"`
 	CopyToClipboard bool   `json:"copyToClipboard"`
+	DryRun          bool   `json:"dryRun"`
 }
 
 func Read(path string) *Config {
@@ -24,7 +25,7 @@ func Read(path string) *Config {
 			file.WithPath(path),
 		),
 		// override with env
-		envvar.NewSource(),
+		env.NewSource(),
 		// override with flags
 		flag.NewSource(),
 	)
@@ -34,6 +35,7 @@ func Read(path string) *Config {
 	// set defaults
 	conf.CreateIndexes = true
 	conf.CopyToClipboard = true
+	conf.DryRun = false
 
 	// scan config into struct
 	config.Scan(&conf)
