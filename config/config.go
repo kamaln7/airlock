@@ -7,7 +7,7 @@ import (
 	"github.com/micro/go-config/source/flag"
 )
 
-var doRegions = []string{"ams3", "nyc3", "sgp1"}
+var doRegions = []string{"ams3", "nyc3", "sgp1", "sfo2", "fra1"}
 
 type Config struct {
 	SpacesAccessKey string `json:"spacesAccessKey"`
