@@ -66,7 +66,7 @@ func (a *Airlock) Upload() error {
 
 	var (
 		waitGroup sync.WaitGroup
-		errChan   = make(chan error, 1)
+		errChan   = make(chan error, len(wgs))
 	)
 
 	for _, wg := range wgs {
