@@ -17,6 +17,8 @@ import (
 	"github.com/kamaln7/airlock/config"
 )
 
+// we currently need to add index.html to URIs manually
+const appendIndexURI = true
 // version is filled in using ldflags
 var version = "v-dev"
 
@@ -113,7 +115,7 @@ func main() {
 	}
 
 	url := fmt.Sprintf("https://%s.%s.digitaloceanspaces.com", al.SpaceName(), conf.Region)
-	if conf.AppendIndexURI {
+	if appendIndexURI {
 		url = url + "/index.html"
 	}
 
