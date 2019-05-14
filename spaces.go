@@ -55,3 +55,22 @@ func (a *Airlock) MakeSpace() error {
 func (a *Airlock) SpaceName() string {
 	return a.space.Name
 }
+
+func (a *Airlock) uploadFile(f File) error {
+	// do nothing on dry run
+	if a.DryRun {
+		time.Sleep(time.Millisecond * 300)
+		return nil
+	}
+
+	if f.IsDir {
+		return nil
+	}
+
+	contentType, err := f.ContentType()
+	if err != nil {
+		return err
+	}
+
+	return a.space.PutReader(f.RelPath, f.Reader, f.Size, contentType, s3.PublicRead, s3.Options{})
+}

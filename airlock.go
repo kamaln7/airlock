@@ -3,18 +3,17 @@ package airlock
 import (
 	"fmt"
 	"html/template"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/fatih/color"
 	"github.com/goamz/goamz/s3"
 	"github.com/gosuri/uiprogress"
 	"github.com/gosuri/uiprogress/util/strutil"
+	"github.com/pkg/errors"
 )
 
 type Airlock struct {
@@ -187,31 +186,13 @@ func (a *Airlock) uploadWorker(wg *sync.WaitGroup, fileChan chan File, errChan c
 			continue
 		}
 
-		errChan <- err
+		errChan <- errors.Wrapf(err, "failed to upload %s", file.RelPath)
 		// re-insert into the channel if the upload failed or ignore if hit max number of tries
 		if file.uploadTries < FileUploadMaxTries {
 			file.uploadTries++
 			fileChan <- file
+		} else {
+			errChan <- fmt.Errorf("failed to upload %s after %d tries", file.RelPath, file.uploadTries)
 		}
 	}
-}
-
-func (a *Airlock) uploadFile(f File) error {
-	// do nothing on dry run
-	if a.DryRun {
-		time.Sleep(time.Millisecond * 300)
-		return nil
-	}
-
-	if f.IsDir {
-		return nil
-	}
-
-	content, err := f.Read()
-	if err != nil {
-		return err
-	}
-
-	contentType := http.DetectContentType(content)
-	return a.space.Put(f.RelPath, content, contentType, s3.PublicRead, s3.Options{})
 }

@@ -1,16 +1,9 @@
 package airlock
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
-
-func makeFSReader(path string) FileReader {
-	return func() ([]byte, error) {
-		return ioutil.ReadFile(path)
-	}
-}
 
 type ErrDoesNotExist error
 
@@ -34,22 +27,28 @@ func (a *Airlock) ScanFiles(path string) error {
 	if info.IsDir() {
 		return a.scanDirectory(absPath)
 	} else {
+		// uploading only one file, create the file "tree" manually
+		descriptor, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+
 		file := &File{
 			RelPath:   info.Name(),
 			Name:      info.Name(),
-			Read:      makeFSReader(absPath),
 			IsDir:     false,
 			IsNotRoot: true,
+			Size:      info.Size(),
+			Reader:    descriptor,
 		}
 		a.tree["."] = &File{
-			RelPath: ".",
-			Name:    info.Name(),
-			Read: func() ([]byte, error) {
-				return nil, nil
-			},
+			RelPath:   ".",
+			Name:      info.Name(),
 			IsDir:     true,
 			IsNotRoot: false,
 			Children:  []*File{file},
+			Size:      info.Size(),
+			Reader:    descriptor,
 		}
 		a.files = append(a.files, *file)
 
@@ -59,6 +58,11 @@ func (a *Airlock) ScanFiles(path string) error {
 
 func (a *Airlock) scanDirectory(dirPath string) error {
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		descriptor, err := os.Open(path)
 		if err != nil {
 			return err
 		}
@@ -79,8 +83,9 @@ func (a *Airlock) scanDirectory(dirPath string) error {
 			RelPath:   relPath,
 			Name:      info.Name(),
 			IsDir:     info.IsDir(),
-			Read:      makeFSReader(absPath),
 			IsNotRoot: relPath != ".",
+			Reader:    descriptor,
+			Size:      info.Size(),
 		}
 
 		// insert into tree

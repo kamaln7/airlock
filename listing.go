@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"log"
 )
 
 const HtmlFileListingTemplate = `
@@ -85,11 +86,15 @@ func (a *Airlock) addFileListing(tree *File, root bool) {
 			relPath = fmt.Sprintf("%s/index.html", tree.RelPath)
 		}
 
+		reader := a.makeListingReader(tree)
 		index := &File{
 			RelPath: relPath,
 			Name:    "index.html",
 			IsDir:   false,
-			Read:    a.makeListingReader(tree),
+			Reader:  reader,
+			Size:    reader.Size(),
+
+			contentType: "text/html",
 		}
 
 		a.tree[index.RelPath] = index
@@ -102,14 +107,13 @@ func (a *Airlock) addFileListing(tree *File, root bool) {
 	}
 }
 
-func (a *Airlock) makeListingReader(tree *File) FileReader {
-	return func() ([]byte, error) {
-		var out bytes.Buffer
-		err := a.listingTmpl.Execute(&out, tree)
-		if err != nil {
-			return nil, err
-		}
-
-		return out.Bytes(), nil
+func (a *Airlock) makeListingReader(tree *File) *bytes.Reader {
+	var out bytes.Buffer
+	err := a.listingTmpl.Execute(&out, tree)
+	if err != nil {
+		log.Printf("error generating file listing for %s: %v\n", tree.RelPath, err)
+		out = *bytes.NewBufferString("")
 	}
+
+	return bytes.NewReader(out.Bytes())
 }
