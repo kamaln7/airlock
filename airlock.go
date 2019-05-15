@@ -100,16 +100,20 @@ func (a *Airlock) Upload() error {
 
 	// run workers and wait for them to finish
 	var (
-		wg       sync.WaitGroup
-		errChan  = make(chan error)
-		fileChan = make(chan File, numWorkers)
+		workerWg, fileWg sync.WaitGroup
+		errChan          = make(chan error)
+		fileChan         = make(chan File, numWorkers)
 	)
 
 	// copy files to a files channel
 	go func() {
+		fileWg.Add(len(a.files))
 		for _, file := range a.files {
 			fileChan <- file
 		}
+
+		// close the channel only when all files have been fully processed
+		fileWg.Wait()
 		close(fileChan)
 	}()
 
@@ -125,16 +129,14 @@ func (a *Airlock) Upload() error {
 	}()
 
 	// create ui progress bars for workers and run them
+	workerWg.Add(numWorkers)
 	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		func() {
-			bar := p.AddBar(len(a.files))
-			bar.Width = 30
-			bar.AppendCompleted()
-			go a.uploadWorker(&wg, fileChan, errChan, bar)
-		}()
+		bar := p.AddBar(len(a.files))
+		bar.Width = 30
+		bar.AppendCompleted()
+		go a.uploadWorker(&workerWg, &fileWg, fileChan, errChan, bar)
 	}
-	wg.Wait()
+	workerWg.Wait()
 
 	close(errChan)
 	p.Stop()
@@ -142,14 +144,14 @@ func (a *Airlock) Upload() error {
 	return nil
 }
 
-func (a *Airlock) uploadWorker(wg *sync.WaitGroup, fileChan chan File, errChan chan<- error, bar *uiprogress.Bar) {
+func (a *Airlock) uploadWorker(workerWg, fileWg *sync.WaitGroup, fileChan chan File, errChan chan<- error, bar *uiprogress.Bar) {
 	var currentFileName string // we need to keep track of this outside the loop so we can print it with the bar
 
 	defer func() {
 		currentFileName = ""
 		for bar.Incr() {
 		}
-		wg.Done()
+		workerWg.Done()
 	}()
 
 	bar.PrependFunc(func(b *uiprogress.Bar) string {
@@ -161,7 +163,7 @@ func (a *Airlock) uploadWorker(wg *sync.WaitGroup, fileChan chan File, errChan c
 		// check if completed
 		if b.Current() == b.Total {
 			c = color.New(color.FgHiBlack)
-			elapsedTime = ""
+			elapsedTime = "done"
 		} else {
 			c = color.New(color.FgBlue)
 			elapsedTime = b.TimeElapsedString()
@@ -177,12 +179,13 @@ func (a *Airlock) uploadWorker(wg *sync.WaitGroup, fileChan chan File, errChan c
 	// do the magic
 	for file := range fileChan {
 		currentFileName = file.Name
-
 		err := a.uploadFile(file)
+		currentFileName = ""
 
 		if err == nil {
 			// thank u, next
 			bar.Incr()
+			fileWg.Done()
 			continue
 		}
 
@@ -192,6 +195,7 @@ func (a *Airlock) uploadWorker(wg *sync.WaitGroup, fileChan chan File, errChan c
 			file.uploadTries++
 			fileChan <- file
 		} else {
+			fileWg.Done()
 			errChan <- fmt.Errorf("failed to upload %s after %d tries", file.RelPath, file.uploadTries)
 		}
 	}
