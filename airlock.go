@@ -178,6 +178,8 @@ func (a *Airlock) uploadWorker(workerWg, fileWg *sync.WaitGroup, fileChan chan F
 
 	// do the magic
 	for file := range fileChan {
+		file.uploadTries++
+
 		currentFileName = file.Name
 		err := a.uploadFile(file)
 		currentFileName = ""
@@ -186,13 +188,18 @@ func (a *Airlock) uploadWorker(workerWg, fileWg *sync.WaitGroup, fileChan chan F
 			// thank u, next
 			bar.Incr()
 			fileWg.Done()
+
+			if file.uploadTries != 1 {
+				// this isn't the first try
+				errChan <- fmt.Errorf("successfully uploaded %s after %d attempts", file.RelPath, file.uploadTries)
+			}
+
 			continue
 		}
 
 		errChan <- errors.Wrapf(err, "failed to upload %s", file.RelPath)
 		// re-insert into the channel if the upload failed or ignore if hit max number of tries
 		if file.uploadTries < FileUploadMaxTries {
-			file.uploadTries++
 			fileChan <- file
 		} else {
 			fileWg.Done()
