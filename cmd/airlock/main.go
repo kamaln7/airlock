@@ -103,11 +103,11 @@ func main() {
 		color.New(color.FgHiBlack).Println("\t * this is a dry run *\n")
 	}
 
-	fmt.Printf("\t🌌 connecting to Spaces\n")
+	fmt.Printf("\t🛰  building spaceship\n")
 	endpoint := fmt.Sprintf("https://%s.digitaloceanspaces.com", conf.Region)
 	spaces := connectSpaces(endpoint, conf.SpacesAccessKey, conf.SpacesSecret)
 
-	fmt.Println("\t⚙  indexing files")
+	fmt.Println("\t👽 boarding files")
 	al, err := airlock.New(spaces, arg)
 	if err != nil {
 		log.Fatalln(err)
@@ -122,15 +122,15 @@ func main() {
 		}
 	}
 
-	fmt.Println("\t⚙  creating Space")
+	fmt.Println("\t⚙  forming airlock chamber")
 	err = al.MakeSpace()
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	fmt.Printf("\t➕ created Space %s\n", color.BlueString(al.SpaceName()))
+	fmt.Printf("\t🎯 setting coordinates to Space %s\n", color.BlueString(al.SpaceName()))
 
-	fmt.Printf("\t✏️  uploading files\n\n")
+	fmt.Printf("\t🗝  releasing airlock\n\n")
 	err = al.Upload()
 	if err != nil {
 		if serr, ok := err.(*s3.Error); ok {
