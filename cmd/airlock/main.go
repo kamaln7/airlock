@@ -99,6 +99,10 @@ func main() {
 		os.Exit(0)
 	}
 
+	if conf.DryRun {
+		color.New(color.FgHiBlack).Println("\t * this is a dry run *\n")
+	}
+
 	fmt.Printf("\t🌌 connecting to Spaces\n")
 	endpoint := fmt.Sprintf("https://%s.digitaloceanspaces.com", conf.Region)
 	spaces := connectSpaces(endpoint, conf.SpacesAccessKey, conf.SpacesSecret)
@@ -145,6 +149,6 @@ func main() {
 
 	if conf.CopyToClipboard {
 		clipboard.WriteAll(url)
-		fmt.Printf("\t  %s\n", color.New(color.FgHiBlack).Sprint(" (in clipboard)"))
+		color.New(color.FgHiBlack).Println("\t   (in clipboard)")
 	}
 }

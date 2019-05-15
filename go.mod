@@ -4,6 +4,7 @@ replace github.com/testcontainers/testcontainer-go => github.com/testcontainers/
 
 require (
 	github.com/atotto/clipboard v0.1.2
+	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.7.0
 	github.com/gabriel-vasile/mimetype v0.3.7
 	github.com/goamz/goamz v0.0.0-20180131231218-8b901b531db8

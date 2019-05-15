@@ -10,15 +10,23 @@ import (
 var doRegions = []string{"ams3", "nyc3", "sgp1", "sfo2", "fra1"}
 
 type Config struct {
-	SpacesAccessKey string `json:"spacesAccessKey"`
-	SpacesSecret    string `json:"spacesSecret"`
+	SpacesAccessKey string `json:"spacesaccesskey"`
+	SpacesSecret    string `json:"spacessecret"`
 	Region          string `json:"region"`
-	CreateIndexes   bool   `json:"createIndexes"`
-	CopyToClipboard bool   `json:"copyToClipboard"`
-	DryRun          bool   `json:"dryRun"`
+	CreateIndexes   bool   `json:"createindexes"`
+	CopyToClipboard bool   `json:"copytoclipboard"`
+	DryRun          bool   `json:"dryrun"`
 }
 
 func Read(path string) *Config {
+	// config w/ defaults
+	conf := Config{
+		CreateIndexes:   true,
+		CopyToClipboard: true,
+		DryRun:          false,
+	}
+
+	// load user config
 	config.Load(
 		// base from file
 		file.NewSource(
@@ -29,13 +37,6 @@ func Read(path string) *Config {
 		// override with flags
 		flag.NewSource(),
 	)
-
-	var conf Config
-
-	// set defaults
-	conf.CreateIndexes = true
-	conf.CopyToClipboard = true
-	conf.DryRun = false
 
 	// scan config into struct
 	config.Scan(&conf)
