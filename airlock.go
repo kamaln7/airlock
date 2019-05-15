@@ -37,6 +37,8 @@ const (
 	SpaceNameRandLength = 5
 	// FileUploadMaxTries is the maximum amount of times airlock will try to upload a file and receive an error before giving up on it
 	FileUploadMaxTries = 2
+
+	barWidth = 30
 )
 
 func New(spaces *s3.S3, path string) (*Airlock, error) {
@@ -100,10 +102,27 @@ func (a *Airlock) Upload() error {
 
 	// run workers and wait for them to finish
 	var (
-		workerWg, fileWg sync.WaitGroup
-		errChan          = make(chan error)
-		fileChan         = make(chan File, numWorkers)
+		workerWg, fileWg  sync.WaitGroup
+		errChan           = make(chan error)
+		fileChan          = make(chan File, numWorkers)
+		completedFileChan = make(chan int)
 	)
+
+	// start progress bar instance
+	p := uiprogress.New()
+	p.Start()
+
+	// create a total bar for an overview of all workers' progress
+	totalBar := makeTotalBar(p, len(a.files))
+	go func() {
+		for range completedFileChan {
+			fileWg.Done()
+			totalBar.Incr()
+		}
+	}()
+
+	// blank line
+	emptyBar := makeEmptyBar(p)
 
 	// copy files to a files channel
 	go func() {
@@ -115,11 +134,8 @@ func (a *Airlock) Upload() error {
 		// close the channel only when all files have been fully processed
 		fileWg.Wait()
 		close(fileChan)
+		removeBar(p, emptyBar)
 	}()
-
-	// start progress bar instance
-	p := uiprogress.New()
-	p.Start()
 
 	// print any received errors
 	go func() {
@@ -131,10 +147,7 @@ func (a *Airlock) Upload() error {
 	// create ui progress bars for workers and run them
 	workerWg.Add(numWorkers)
 	for i := 0; i < numWorkers; i++ {
-		bar := p.AddBar(len(a.files))
-		bar.Width = 30
-		bar.AppendCompleted()
-		go a.uploadWorker(&workerWg, &fileWg, fileChan, errChan, bar)
+		go a.uploadWorker(&workerWg, completedFileChan, fileChan, errChan, p)
 	}
 	workerWg.Wait()
 
@@ -144,13 +157,14 @@ func (a *Airlock) Upload() error {
 	return nil
 }
 
-func (a *Airlock) uploadWorker(workerWg, fileWg *sync.WaitGroup, fileChan chan File, errChan chan<- error, bar *uiprogress.Bar) {
+func (a *Airlock) uploadWorker(workerWg *sync.WaitGroup, completedFileChan chan<- int, fileChan chan File, errChan chan<- error, p *uiprogress.Progress) {
 	var currentFileName string // we need to keep track of this outside the loop so we can print it with the bar
 
+	bar := p.AddBar(len(a.files))
+	bar.Width = barWidth
+	bar.AppendCompleted()
 	defer func() {
-		currentFileName = ""
-		for bar.Incr() {
-		}
+		removeBar(p, bar)
 		workerWg.Done()
 	}()
 
@@ -187,7 +201,7 @@ func (a *Airlock) uploadWorker(workerWg, fileWg *sync.WaitGroup, fileChan chan F
 		if err == nil {
 			// thank u, next
 			bar.Incr()
-			fileWg.Done()
+			completedFileChan <- 1
 
 			if file.uploadTries != 1 {
 				// this isn't the first try
@@ -202,8 +216,43 @@ func (a *Airlock) uploadWorker(workerWg, fileWg *sync.WaitGroup, fileChan chan F
 		if file.uploadTries < FileUploadMaxTries {
 			fileChan <- file
 		} else {
-			fileWg.Done()
+			completedFileChan <- 1
 			errChan <- fmt.Errorf("failed to upload %s after %d tries", file.RelPath, file.uploadTries)
+		}
+	}
+}
+
+func makeTotalBar(p *uiprogress.Progress, n int) *uiprogress.Bar {
+	bar := p.AddBar(n)
+	bar.Width = barWidth
+	bar.Empty = ' '
+	bar.Fill = '~'
+	bar.Head = ' '
+	bar.PrependFunc(func(b *uiprogress.Bar) string {
+		color.Set(color.FgBlue)
+		return strutil.PadLeft("", 20, ' ')
+	})
+	bar.AppendFunc(func(b *uiprogress.Bar) string {
+		return color.New(color.Reset).Sprintf("%d/%d", b.Current(), b.Total)
+	})
+	return bar
+}
+
+func makeEmptyBar(p *uiprogress.Progress) *uiprogress.Bar {
+	bar := p.AddBar(1)
+	bar.Fill = ' '
+	bar.Empty = ' '
+	bar.Head = ' '
+	bar.LeftEnd = ' '
+	bar.RightEnd = ' '
+
+	return bar
+}
+
+func removeBar(p *uiprogress.Progress, bar *uiprogress.Bar) {
+	for i, b := range p.Bars {
+		if b == bar {
+			p.Bars = append(p.Bars[:i], p.Bars[i+1:]...)
 		}
 	}
 }

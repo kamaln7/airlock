@@ -149,6 +149,6 @@ func main() {
 
 	if conf.CopyToClipboard {
 		clipboard.WriteAll(url)
-		color.New(color.FgHiBlack).Println("\t   (in clipboard)")
+		color.New(color.FgHiBlack).Println("\t     (in clipboard)")
 	}
 }
